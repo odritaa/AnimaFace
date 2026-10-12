@@ -1,4 +1,4 @@
-Pipeline Rostro -- corrida del 2026-10-12 13:34
+Pipeline Rostro -- corrida del 2026-10-12 16:26
 Modo --rapido: barrido de 5 semillas (no 20).
 
 ======================================================================
@@ -11,7 +11,35 @@ Desplazamiento promedio (PC1 +2 desvíos): 6.33 mm
 Desplazamiento máximo: 12.04 mm
   [OK     ] pesos=0 reproduce la cara promedio exacta
   [OK     ] desplazamiento con PC1 +2 desvíos no es absurdo -- 6.33 mm promedio, 12.04 mm máximo
-  [N/D    ] model2019_face12.h5 no está en la carpeta -- no se puede comprobar la varianza total contra el modelo original (el .npz solo guarda las 28 componentes ya retenidas, no el total). Se sigue con el .npz.
+
+Componentes disponibles en el modelo: 199
+
+Componente | Varianza individual | Varianza acumulada
+  PC1         47.97%              47.97%
+  PC2         10.14%              58.11%
+  PC3          6.86%              64.97%
+  PC4          5.60%              70.57%
+  PC5          4.13%              74.70%
+  PC6          2.83%              77.53%
+  PC7          2.62%              80.16%
+  PC8          1.85%              82.01%
+  PC9          1.62%              83.63%
+  PC10         1.30%              84.93%
+  PC11         1.18%              86.11%
+  PC12         1.04%              87.14%
+  PC13         0.94%              88.09%
+  PC14         0.77%              88.86%
+  PC15         0.69%              89.54%
+
+Para cubrir el 90% de la varianza total, hacen falta 16 componentes.
+
+Para cubrir el 95% de la varianza total, hacen falta 28 componentes.
+
+Para cubrir el 98% de la varianza total, hacen falta 49 componentes.
+
+Para cubrir el 99% de la varianza total, hacen falta 68 componentes.
+  [OK     ] varianza retenida >= 95% del total (contra .h5) -- 95.07% con las primeras 28 componentes
+  [OK     ] componente 1 del .npz coincide con el .h5 -- .npz=295514.3  .h5=295514.3
 
 ======================================================================
 PUNTO 2 -- Puntaje poligénico (puntaje_poligenico.py)
@@ -51,7 +79,7 @@ BARRIDO DE SEMILLAS -- 5 semillas
 ======================================================================
 TESTS -- pytest tests/
 ======================================================================
-  ......                                                                   [100%]
+  ...........                                                              [100%]
   ============================== warnings summary ===============================
   tests/test_brim.py::test_r2_con_trampa_mayor_que_honesto
   tests/test_brim.py::test_corrida_principal_r2_honesto_en_rango
@@ -61,5 +89,5 @@ TESTS -- pytest tests/
       var = nanvar(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
   
   -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-  6 passed, 4 warnings in 7.48s
-  [OK     ] pytest tests/ -- 6 passed, 4 warnings in 7.48s
+  11 passed, 4 warnings in 58.88s
+  [OK     ] pytest tests/ -- 11 passed, 4 warnings in 58.88s

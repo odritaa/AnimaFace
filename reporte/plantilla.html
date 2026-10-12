@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rostro — visor 3D real (Basel Face Model)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root {
+    --bg: #FDFDFC; --surface: #FFFFFF; --surface-2: #F1EEEA;
+    --text: #241F1B; --text-dim: #6E6860; --line: rgba(36,31,27,0.14);
+    --teal: #C9962E; --teal-deep: #A97A22; --amber: #B7362D;
+    --shadow: 0 1px 2px rgba(36,31,27,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1C1815; --surface: #262220; --surface-2: #2F2A26;
+      --text: #F1ECE6; --text-dim: #B7AFA5; --line: rgba(241,236,230,0.14);
+      --teal: #E0AC4A; --teal-deep: #C9962E; --amber: #D6584A; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1C1815; --surface: #262220; --surface-2: #2F2A26;
+    --text: #F1ECE6; --text-dim: #B7AFA5; --line: rgba(241,236,230,0.14);
+    --teal: #E0AC4A; --teal-deep: #C9962E; --amber: #D6584A; --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 2.2rem 1.4rem 4rem; }
+  h1 { font-family: "Newsreader", Georgia, serif; font-weight: 500; letter-spacing: -0.01em;
+       font-size: clamp(1.5rem, 4vw, 2.1rem); margin: 0 0 0.4rem; }
+  .kicker { font-size: 0.8rem; color: var(--teal-deep); font-weight: 600; margin-bottom: 0.4rem; }
+  header p { color: var(--text-dim); max-width: 65ch; margin: 0 0 0.9rem; }
+  .badge-real {
+    display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.82rem;
+    padding: 0.35rem 0.75rem; border-radius: 100px; background: var(--surface-2); color: var(--text);
+    border: 1px solid var(--line);
+  }
+  .badge-real .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
+
+  .layout { display: grid; grid-template-columns: 1.3fr 1fr; gap: 1.4rem; margin-top: 1.6rem; align-items: start; }
+  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+
+  .viewer-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); overflow: hidden; position: relative;
+  }
+  #canvas-holder { width: 100%; aspect-ratio: 1 / 1; cursor: grab; touch-action: none; }
+  #canvas-holder:active { cursor: grabbing; }
+  .hint {
+    position: absolute; bottom: 0.8rem; left: 50%; transform: translateX(-50%);
+    font-size: 0.78rem; color: var(--text-dim); background: var(--surface);
+    padding: 0.3rem 0.8rem; border-radius: 100px; border: 1px solid var(--line);
+    pointer-events: none; opacity: 0.9;
+  }
+
+  .controls-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 1.2rem 1.3rem; box-shadow: var(--shadow);
+  }
+  .controls-card h2 { font-family: "Newsreader", serif; font-weight: 500; font-size: 1.1rem; margin: 0 0 0.9rem; }
+  .slider-row { margin-bottom: 1.05rem; }
+  .slider-row label {
+    display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.3rem;
+  }
+  .slider-row .pct { color: var(--text-dim); font-family: "IBM Plex Mono", monospace; font-size: 0.78rem; }
+  .slider-row input[type="range"] {
+    width: 100%; accent-color: var(--amber); height: 4px;
+  }
+  .reset-btn {
+    width: 100%; margin-top: 0.4rem; padding: 0.55rem; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--text); font-family: "IBM Plex Sans", sans-serif;
+    font-size: 0.85rem; font-weight: 500; cursor: pointer;
+  }
+  .reset-btn:hover { border-color: var(--amber); }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.6rem; }
+  .btn-row .reset-btn { margin-top: 0; }
+  #sliders { max-height: 560px; overflow-y: auto; padding-right: 0.6rem; }
+  .slider-row { margin-bottom: 0.8rem; }
+  .slider-row .val { font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; color: var(--amber); margin-left: 0.4rem; }
+
+  footer { margin-top: 1.6rem; color: var(--text-dim); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 1.2rem; }
+  /* ---------- Resultados y dirección del RIP ---------- */
+  .section { margin-top: 3rem; }
+  .section h2.sec-title { font-family: "Newsreader", Georgia, serif; font-weight: 500; font-size: clamp(1.3rem, 3.4vw, 1.7rem); margin: 0 0 0.35rem; letter-spacing: -0.01em; }
+  .section .sec-kicker { font-size: 0.78rem; color: var(--teal-deep); font-weight: 600; margin-bottom: 0.3rem; }
+  .section > p.lead { color: var(--text-dim); max-width: 70ch; margin: 0 0 1.3rem; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.8rem; margin-bottom: 1.4rem; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0.9rem 1rem; min-width: 0; }
+  .tile .t-label { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 0.25rem; }
+  .tile .t-val { font-family: "IBM Plex Mono", monospace; font-weight: 500; font-size: 1.55rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .tile .t-sub { font-size: 0.78rem; color: var(--text-dim); margin-top: 0.3rem; }
+  .tile.main .t-val { color: var(--amber); }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 1rem; }
+  figure.chart { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0.9rem 1rem 0.7rem; min-width: 0; }
+  figure.chart figcaption { margin-bottom: 0.5rem; }
+  figure.chart .c-title { font-weight: 600; font-size: 0.95rem; }
+  figure.chart .c-stage { font-size: 0.72rem; color: var(--teal-deep); font-weight: 600; margin-bottom: 0.1rem; }
+  figure.chart .c-sub { font-size: 0.8rem; color: var(--text-dim); margin-top: 0.15rem; max-width: 60ch; }
+  figure.chart svg { width: 100%; height: auto; display: block; }
+  figure.chart.wide { grid-column: 1 / -1; }
+  svg .ax-line { stroke: var(--line); stroke-width: 1; fill: none; }
+  svg .grid { stroke: var(--line); stroke-width: 1; opacity: 0.55; }
+  svg text { fill: var(--text-dim); font-family: "IBM Plex Sans", sans-serif; font-size: 11px; }
+  svg text.axlabel { font-size: 11px; }
+  svg text.note { fill: var(--text); font-size: 11px; }
+  svg .m-gold { fill: var(--teal); }
+  svg .m-red { fill: var(--amber); }
+  svg .m-gray { fill: var(--text-dim); }
+  svg .l-gold { stroke: var(--teal); fill: none; stroke-width: 2; }
+  svg .l-red { stroke: var(--amber); fill: none; stroke-width: 2; }
+  svg .l-dash { stroke: var(--text-dim); fill: none; stroke-width: 1.2; stroke-dasharray: 4 4; }
+  svg .l-gold-dash { stroke: var(--teal-deep); fill: none; stroke-width: 1.4; stroke-dasharray: 5 4; }
+  svg .err { stroke: var(--text-dim); stroke-width: 1.2; }
+
+  .rip-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 1rem; }
+  .rip-view { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; min-width: 0; }
+  .rip-view .rv-title { padding: 0.7rem 0.9rem 0; font-weight: 600; font-size: 0.92rem; }
+  .rip-view .rv-sub { padding: 0 0.9rem; font-size: 0.78rem; color: var(--text-dim); }
+  .rip-canvas { width: 100%; aspect-ratio: 4 / 5; cursor: grab; touch-action: none; }
+  .rip-canvas:active { cursor: grabbing; }
+  .rip-bar { display: flex; flex-wrap: wrap; gap: 0.8rem 1.4rem; align-items: center; margin: 1rem 0 0.2rem; }
+  .rip-bar .lbl { font-size: 0.85rem; font-weight: 500; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { font-family: "IBM Plex Sans", sans-serif; font-size: 0.85rem; padding: 0.4rem 0.85rem; background: var(--surface); color: var(--text); border: 0; border-right: 1px solid var(--line); cursor: pointer; }
+  .seg button:last-child { border-right: 0; }
+  .seg button[aria-pressed="true"] { background: var(--amber); color: #fff; }
+  .seg button:focus-visible, .reset-btn:focus-visible { outline: 2px solid var(--teal-deep); outline-offset: 2px; }
+  .legend-heat { display: flex; align-items: center; gap: 0.6rem; font-size: 0.78rem; color: var(--text-dim); padding: 0.5rem 0.9rem 0.8rem; }
+  .legend-heat .ramp { flex: 1; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #F6EFE2, #E0AC4A, #B7362D); border: 1px solid var(--line); }
+  .note-box { margin-top: 1rem; padding: 0.85rem 1.05rem; background: var(--surface-2); border-left: 3px solid var(--amber); border-radius: 6px; font-size: 0.9rem; max-width: 80ch; }
+  .note-box b { color: var(--amber); }
+
+  @media (max-width: 560px) {
+    svg text, svg text.note, svg text.axlabel { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Rostro — Proyecto Anima — Puntos 1 a 3</div>
+    <h1>Espacio de rasgos faciales, en vivo</h1>
+    <p>Esta es la cara promedio real del Basel Face Model 2019 y las 28 componentes principales reales que usa el proyecto — no son datos inventados. Moviendo los sliders viajás por el espacio de rasgos que después se conecta con el genotipo. Las primeras componentes mueven la cara en grande; las últimas, en detalles finos.</p>
+    <span class="badge-real"><span class="dot"></span> Datos reales del modelo — 27.657 vértices. 55.040 triángulos (solo rostro. sin cráneo/cuello/orejas)</span>
+  </header>
+
+  <div class="layout">
+    <div class="viewer-card">
+      <div id="canvas-holder"></div>
+      <div class="hint">Arrastrá para rotar</div>
+    </div>
+    <div class="controls-card">
+      <h2>Las 28 componentes principales</h2>
+      <div id="sliders"></div>
+      <div class="btn-row"><button class="reset-btn" id="reset-btn">Cara promedio</button><button class="reset-btn" id="random-btn">Cara aleatoria</button></div>
+    </div>
+  </div>
+
+  <section class="section" id="resultados">
+    <div class="sec-kicker">Puntos 1 a 3 — corrida de referencia</div>
+    <h2 class="sec-title">Qué da el pipeline, todo en una pantalla</h2>
+    <p class="lead">Cohorte simulada de <span id="txt-n"></span> personas, con una señal genética de 7,9 % aplicada a las 28 componentes (el máximo publicado por Xiong et al., 2025). Son los mismos números que da el script <code>brim_rostro.py</code> con la semilla 42; no hace falta correr nada para verlos.</p>
+    <div class="tiles" id="tiles"></div>
+    <div class="charts" id="charts"></div>
+  </section>
+
+  <section class="section" id="rip">
+    <div class="sec-kicker">Punto 3 — BRIM</div>
+    <h2 class="sec-title">La dirección del RIP en la cara</h2>
+    <p class="lead">El RIP es una dirección dentro del espacio de rasgos: una combinación de las 28 componentes que sigue al puntaje genético. Abajo ves la cara 2 desvíos hacia cada lado de esa dirección. El mapa de color muestra dónde cambia más la cara, en tamaño real. Arrastrá cualquiera de las tres para rotarlas juntas.</p>
+    <div class="rip-grid">
+      <div class="rip-view"><div class="rv-title">RIP −2</div><div class="rv-sub" id="sub-minus"></div><div class="rip-canvas" id="cv-minus"></div></div>
+      <div class="rip-view"><div class="rv-title">RIP +2</div><div class="rv-sub" id="sub-plus"></div><div class="rip-canvas" id="cv-plus"></div></div>
+      <div class="rip-view"><div class="rv-title">Dónde cambia la cara</div><div class="rv-sub">Diferencia real entre RIP −2 y RIP +2, en milímetros</div><div class="rip-canvas" id="cv-heat"></div>
+        <div class="legend-heat"><span id="heat-min">0 mm</span><span class="ramp"></span><span id="heat-max"></span></div></div>
+    </div>
+    <div class="rip-bar">
+      <span class="lbl" id="amp-lbl">Exageración de las dos caras</span>
+      <div class="seg" role="group" aria-labelledby="amp-lbl" id="amp-seg">
+        <button type="button" data-amp="1" aria-pressed="false">×1</button>
+        <button type="button" data-amp="5" aria-pressed="true">×5</button>
+        <button type="button" data-amp="10" aria-pressed="false">×10</button>
+        <button type="button" data-amp="25" aria-pressed="false">×25</button>
+      </div>
+    </div>
+    <div class="note-box"><b>Cómo leerlo.</b> La diferencia real entre las dos caras es de <span id="mm-prom"></span> mm en promedio y <span id="mm-max"></span> mm como máximo, así que a tamaño real casi no se ve. Por eso las dos primeras caras están exageradas, y la exageración se indica arriba de cada una. El mapa de color no está exagerado.</div>
+  </section>
+
+  <footer>
+    Cada componente está en desvíos estándar (de -3 a +3). Los porcentajes son la parte de la variación total de forma del modelo que explica cada componente; las 28 juntas cubren el 95,07 %. La componente 1 concentra cerca del 48 %, en buena parte porque el modelo no normaliza la escala (limitación declarada del proyecto).
+  </footer>
+</div>
+
+<script>
+const ROSTRO_DATA = /*__ROSTRO_DATA__*/null;
+</script>
+<script>
+function decodeFloat32(b64) {
+  const bin = atob(b64);
+  const buf = new ArrayBuffer(bin.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i);
+  return new Float32Array(buf);
+}
+function decodeInt16(b64) {
+  const bin = atob(b64);
+  const buf = new ArrayBuffer(bin.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i);
+  return new Int16Array(buf);
+}
+function decodeUint16(b64) {
+  const bin = atob(b64);
+  const buf = new ArrayBuffer(bin.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i);
+  return new Uint16Array(buf);
+}
+
+const media = decodeFloat32(ROSTRO_DATA.media_b64);
+const baseQ = decodeInt16(ROSTRO_DATA.base_q_b64);      // [vertexDim * nComponentes], int16
+const escala = decodeFloat32(ROSTRO_DATA.escala_b64);     // factor de escala por componente
+const pctTotal = decodeFloat32(ROSTRO_DATA.pct_total_b64); // % de la varianza total del modelo
+const varianza = decodeFloat32(ROSTRO_DATA.varianza_b64);
+const cells = decodeUint16(ROSTRO_DATA.cells_b64);
+const nComponentes = ROSTRO_DATA.n_componentes;
+const nVertexDim = media.length;
+
+const desvios = [];
+for (let k = 0; k < nComponentes; k++) desvios.push(Math.sqrt(varianza[k]));
+
+let pesos = new Array(nComponentes).fill(0);
+let dirty = true;
+
+// --- Three.js setup ---
+const holder = document.getElementById('canvas-holder');
+const scene = new THREE.Scene();
+const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+scene.background = null;
+
+const camera = new THREE.PerspectiveCamera(28, 1, 1, 5000);
+camera.position.set(0, 10, 480);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+holder.appendChild(renderer.domElement);
+
+function resize() {
+  const w = holder.clientWidth, h = holder.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+
+const geometry = new THREE.BufferGeometry();
+const positions = new Float32Array(nVertexDim);
+geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+geometry.setIndex(new THREE.BufferAttribute(cells, 1));
+
+const material = new THREE.MeshStandardMaterial({
+  color: 0xE8DCC8, roughness: 0.55, metalness: 0.05,
+  flatShading: false, side: THREE.DoubleSide
+});
+const mesh = new THREE.Mesh(geometry, material);
+const group = new THREE.Group();
+group.add(mesh);
+scene.add(group);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const dir1 = new THREE.DirectionalLight(0xfff2e0, 1.0);
+dir1.position.set(1, 1, 1.5);
+scene.add(dir1);
+const dir2 = new THREE.DirectionalLight(0xe8f0ff, 0.4);
+dir2.position.set(-1, 0.3, -1);
+scene.add(dir2);
+
+function updateGeometry() {
+  const pos = geometry.attributes.position.array;
+  for (let i = 0; i < nVertexDim; i++) pos[i] = media[i];
+  for (let k = 0; k < nComponentes; k++) {
+    const w = pesos[k] * desvios[k] * escala[k];
+    if (w === 0) continue;
+    for (let i = 0, j = k; i < nVertexDim; i++, j += nComponentes) {
+      pos[i] += w * baseQ[j];
+    }
+  }
+  geometry.attributes.position.needsUpdate = true;
+  geometry.computeVertexNormals();
+  if (!geometry.boundingSphere) geometry.computeBoundingSphere();
+}
+
+// initial centering
+updateGeometry();
+geometry.computeBoundingBox();
+const bbox = geometry.boundingBox;
+const center = new THREE.Vector3();
+bbox.getCenter(center);
+mesh.position.set(-center.x, -center.y, -center.z);
+const size = new THREE.Vector3();
+bbox.getSize(size);
+const maxDim = Math.max(size.x, size.y, size.z);
+camera.position.set(0, size.y * 0.05, maxDim * 2.35);
+camera.lookAt(0, 0, 0);
+
+// --- mouse / touch drag rotation ---
+let dragging = false, lastX = 0, lastY = 0;
+let rotX = 0, rotY = 0;
+
+function pointerDown(x, y) { dragging = true; lastX = x; lastY = y; }
+function pointerMove(x, y) {
+  if (!dragging) return;
+  const dx = x - lastX, dy = y - lastY;
+  rotY += dx * 0.008;
+  rotX += dy * 0.008;
+  rotX = Math.max(-1.1, Math.min(1.1, rotX));
+  lastX = x; lastY = y;
+}
+function pointerUp() { dragging = false; }
+
+holder.addEventListener('mousedown', e => pointerDown(e.clientX, e.clientY));
+window.addEventListener('mousemove', e => pointerMove(e.clientX, e.clientY));
+window.addEventListener('mouseup', pointerUp);
+holder.addEventListener('touchstart', e => { const t = e.touches[0]; pointerDown(t.clientX, t.clientY); }, { passive: true });
+holder.addEventListener('touchmove', e => { const t = e.touches[0]; pointerMove(t.clientX, t.clientY); }, { passive: true });
+holder.addEventListener('touchend', pointerUp);
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (dirty) { updateGeometry(); dirty = false; }
+  group.rotation.y = rotY;
+  group.rotation.x = rotX;
+  renderer.render(scene, camera);
+}
+resize();
+animate();
+
+// --- sliders ---
+const slidersDiv = document.getElementById('sliders');
+for (let k = 0; k < nComponentes; k++) {
+  const row = document.createElement('div');
+  row.className = 'slider-row';
+  row.innerHTML = `
+    <label>Componente ${k + 1} <span><span class="pct">${pctTotal[k].toFixed(2)}% del total</span><span class="val" id="val-${k}">0.0</span></span></label>
+    <input type="range" min="-3" max="3" step="0.05" value="0" data-idx="${k}">
+  `;
+  slidersDiv.appendChild(row);
+}
+slidersDiv.addEventListener('input', (e) => {
+  const idx = parseInt(e.target.dataset.idx);
+  pesos[idx] = parseFloat(e.target.value);
+  document.getElementById('val-' + idx).textContent = pesos[idx].toFixed(1);
+  dirty = true;
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  pesos = new Array(nComponentes).fill(0);
+  document.querySelectorAll('#sliders input[type="range"]').forEach(el => el.value = 0);
+  for (let k = 0; k < nComponentes; k++) document.getElementById('val-' + k).textContent = '0.0';
+  dirty = true;
+});
+
+// Cara aleatoria: cada componente ~ Normal(0,1), recortada a [-3, 3]
+function randn() { let u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+document.getElementById('random-btn').addEventListener('click', () => {
+  const inputs = document.querySelectorAll('#sliders input[type="range"]');
+  for (let k = 0; k < nComponentes; k++) {
+    const w = Math.max(-3, Math.min(3, Math.round(randn() * 20) / 20));
+    pesos[k] = w; inputs[k].value = w;
+    document.getElementById('val-' + k).textContent = w.toFixed(1);
+  }
+  dirty = true;
+});
+</script>
+<script>
+const RESULTADOS = /*__RESULTADOS__*/null;
+</script>
+<script>
+(function () {
+  const R = RESULTADOS;
+  const $ = (id) => document.getElementById(id);
+  const fmt = (x, d = 2) => (x < 0 ? '−' : '') + Math.abs(x).toFixed(d).replace('.', ',');
+  const pct = (x, d = 2) => fmt(x, d) + ' %';
+  const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+  const tick = (v) => (v < 0 ? '−' : '') + Math.abs(v);
+
+  $('txt-n').textContent = R.n;
+  $('mm-prom').textContent = fmt(R.mm_prom);
+  $('mm-max').textContent = fmt(R.mm_max);
+
+  // ---------- tarjetas resumen ----------
+  const bh = R.barrido_honesto, bp = R.barrido_perm;
+  const tiles = [
+    { l: 'R² honesto (leave-one-out)', v: pct(R.r2), s: 'IC95 %: ' + fmt(R.r2_ic[0]) + ' a ' + fmt(R.r2_ic[1]), main: true },
+    { l: 'Control: puntaje mezclado', v: pct(R.perm), s: 'IC95 %: ' + fmt(R.perm_ic[0]) + ' a ' + fmt(R.perm_ic[1]) + '. Debe dar cerca de 0' },
+    { l: 'Sin leave-one-out (con trampa)', v: pct(R.trampa), s: 'Se infla porque el modelo ve la respuesta' },
+    { l: 'Barrido de 20 semillas', v: pct(mean(bh)), s: 'Rango ' + fmt(Math.min(...bh)) + ' a ' + fmt(Math.max(...bh)) + '. Mezclado: ' + pct(mean(bp)) },
+  ];
+  $('tiles').innerHTML = tiles.map(t =>
+    `<div class="tile${t.main ? ' main' : ''}"><div class="t-label">${t.l}</div><div class="t-val">${t.v}</div><div class="t-sub">${t.s}</div></div>`).join('');
+
+  // ---------- helpers de gráficos SVG ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, parent, text) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text !== undefined) e.textContent = text;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  let W = 520, H = 300;
+  const M = { l: 52, r: 14, t: 12, b: 40 };
+  const lin = (d0, d1, r0, r1) => (v) => r0 + (v - d0) * (r1 - r0) / (d1 - d0);
+  function chart(stage, title, sub, w, h) {
+    W = w || 520; H = h || 300;
+    const fig = document.createElement('figure');
+    fig.className = 'chart' + (w ? ' wide' : '');
+    fig.innerHTML = `<figcaption><div class="c-stage">${stage}</div><div class="c-title">${title}</div><div class="c-sub">${sub}</div></figcaption>`;
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': title });
+    fig.appendChild(svg);
+    $('charts').appendChild(fig);
+    return svg;
+  }
+  function axes(svg, xs, ys, xt, yt, xlabel, ylabel) {
+    yt.forEach(t => {
+      const y = ys(t.v);
+      el('line', { x1: M.l, x2: W - M.r, y1: y, y2: y, class: 'grid' }, svg);
+      el('text', { x: M.l - 6, y: y + 4, 'text-anchor': 'end' }, svg, t.l !== undefined ? t.l : tick(t.v));
+    });
+    xt.forEach(t => {
+      const x = xs(t.v);
+      el('line', { x1: x, x2: x, y1: H - M.b, y2: H - M.b + 4, class: 'ax-line' }, svg);
+      el('text', { x: x, y: H - M.b + 16, 'text-anchor': 'middle' }, svg, t.l !== undefined ? t.l : tick(t.v));
+    });
+    el('line', { x1: M.l, x2: W - M.r, y1: H - M.b, y2: H - M.b, class: 'ax-line' }, svg);
+    el('line', { x1: M.l, x2: M.l, y1: M.t, y2: H - M.b, class: 'ax-line' }, svg);
+    el('text', { x: (M.l + W - M.r) / 2, y: H - 5, 'text-anchor': 'middle' }, svg, xlabel);
+    const cy = (M.t + H - M.b) / 2;
+    el('text', { x: 12, y: cy, 'text-anchor': 'middle', transform: `rotate(-90 12 ${cy})` }, svg, ylabel);
+  }
+  function legend(svg, x, y, kind, text) {
+    if (kind === 'dot-gold') el('circle', { cx: x + 5, cy: y - 4, r: 4.5, class: 'm-gold' }, svg);
+    if (kind === 'dot-gray') el('circle', { cx: x + 5, cy: y - 4, r: 4.5, class: 'm-gray' }, svg);
+    if (kind === 'bar-red') el('rect', { x: x, y: y - 9, width: 10, height: 10, class: 'm-red' }, svg);
+    if (kind === 'dash-gold') el('line', { x1: x, x2: x + 12, y1: y - 4, y2: y - 4, class: 'l-gold-dash' }, svg);
+    if (kind === 'line-red') el('line', { x1: x, x2: x + 12, y1: y - 4, y2: y - 4, class: 'l-red' }, svg);
+    if (kind === 'dash-gray') el('line', { x1: x, x2: x + 12, y1: y - 4, y2: y - 4, class: 'l-dash' }, svg);
+    el('text', { x: x + 17, y: y, class: 'note' }, svg, text);
+  }
+
+  // ---------- 1. Varianza acumulada (Punto 1) ----------
+  (function () {
+    const svg = chart('Punto 1 — espacio de rasgos', 'Cuánta forma facial explican las componentes',
+      'Varianza acumulada del modelo face12 (199 componentes en total). Con 28 se cubre el ' + fmt(R.cum28) + ' %.');
+    const n = R.cum.length;
+    const xs = lin(1, n, M.l, W - M.r), ys = lin(0, 100, H - M.b, M.t);
+    axes(svg, xs, ys, [1, 28, 50, 100, 150, n].map(v => ({ v })), [0, 25, 50, 75, 100].map(v => ({ v, l: v + ' %' })), 'Cantidad de componentes', 'Varianza acumulada');
+    el('line', { x1: M.l, x2: W - M.r, y1: ys(95), y2: ys(95), class: 'l-dash' }, svg);
+    el('text', { x: W - M.r, y: ys(95) + 13, 'text-anchor': 'end' }, svg, '95 %');
+    el('line', { x1: xs(28), x2: xs(28), y1: ys(95), y2: H - M.b, class: 'l-gold-dash' }, svg);
+    el('path', { d: R.cum.map((v, i) => (i ? 'L' : 'M') + xs(i + 1).toFixed(1) + ',' + ys(v).toFixed(1)).join(' '), class: 'l-gold' }, svg);
+    el('circle', { cx: xs(28), cy: ys(R.cum28), r: 4.5, class: 'm-red' }, svg);
+    el('text', { x: xs(28) + 10, y: ys(70), class: 'note' }, svg, '28 componentes');
+    el('text', { x: xs(28) + 10, y: ys(70) + 14, class: 'note' }, svg, '= ' + fmt(R.cum28) + ' %');
+  })();
+
+  // ---------- 2. Histograma del puntaje (Punto 2) ----------
+  (function () {
+    const svg = chart('Punto 2 — puntaje poligénico', 'Puntaje de las ' + R.n + ' personas simuladas',
+      'Suma de los efectos de las 28 componentes, estandarizada (media 0, desvío 1).');
+    const e0 = -3.5, e1 = 3.5, step = 0.5, nb = Math.round((e1 - e0) / step);
+    const counts = new Array(nb).fill(0);
+    R.puntaje.forEach(v => { const b = Math.min(nb - 1, Math.max(0, Math.floor((v - e0) / step))); counts[b]++; });
+    const cmax = Math.ceil(Math.max(...counts) / 10) * 10;
+    const xs = lin(e0, e1, M.l, W - M.r), ys = lin(0, cmax, H - M.b, M.t);
+    const yt = []; for (let v = 0; v <= cmax; v += cmax / 4) yt.push({ v: Math.round(v) });
+    const xt = []; for (let v = -3; v <= 3; v++) xt.push({ v });
+    axes(svg, xs, ys, xt, yt, 'Puntaje poligénico (desvíos estándar)', 'Personas');
+    counts.forEach((c, i) => {
+      const x0 = xs(e0 + i * step) + 1, x1 = xs(e0 + (i + 1) * step) - 1;
+      el('rect', { x: x0, y: ys(c), width: x1 - x0, height: H - M.b - ys(c), class: 'm-gold' }, svg);
+    });
+  })();
+
+  // ---------- 3. RIP vs puntaje (Punto 3) ----------
+  (function () {
+    const svg = chart('Punto 3 — BRIM', 'RIP contra puntaje real: R² honesto ' + pct(R.r2),
+      'Cada punto es una persona. Su RIP sale de un modelo entrenado sin ella (leave-one-out).');
+    const s = R.puntaje, r = R.rip;
+    const ym = Math.ceil(Math.max(...r.map(Math.abs)) * 2) / 2;
+    const xm = 3.5;
+    const xs = lin(-xm, xm, M.l, W - M.r), ys = lin(-ym * 1.35, ym, H - M.b, M.t);
+    const yt = []; for (let v = -ym; v <= ym + 1e-9; v += 0.5) yt.push({ v: Math.round(v * 10) / 10 });
+    const xt = []; for (let v = -3; v <= 3; v++) xt.push({ v });
+    axes(svg, xs, ys, xt, yt, 'Puntaje poligénico real', 'RIP estimado');
+    el('line', { x1: xs(-ym), y1: ys(-ym), x2: xs(ym), y2: ys(ym), class: 'l-dash' }, svg);
+    s.forEach((v, i) => el('circle', { cx: xs(v).toFixed(1), cy: ys(r[i]).toFixed(1), r: 2.6, class: 'm-gold', 'fill-opacity': 0.55 }, svg));
+    const ms = mean(s), mr = mean(r);
+    let sxy = 0, sxx = 0; s.forEach((v, i) => { sxy += (v - ms) * (r[i] - mr); sxx += (v - ms) ** 2; });
+    const b = sxy / sxx, a = mr - b * ms;
+    el('line', { x1: xs(-3), y1: ys(a - 3 * b), x2: xs(3), y2: ys(a + 3 * b), class: 'l-red' }, svg);
+    legend(svg, M.l + 8, H - M.b - 30, 'dash-gray', 'Acierto perfecto');
+    legend(svg, M.l + 8, H - M.b - 14, 'line-red', 'Tendencia real');
+  })();
+
+  // ---------- 4. Pesos de BRIM ----------
+  (function () {
+    const svg = chart('Punto 3 — BRIM', 'Qué componentes usa el RIP',
+      'Peso de cada componente con su intervalo de confianza del 95 % (bootstrap). La línea dorada es el valor verdadero, igual en todas por cómo se simuló.');
+    const k = R.coef.length;
+    const lo = Math.min(0, ...R.coef_lo), hi = Math.max(...R.coef_hi, R.beta_verdadero);
+    const rng = hi - lo, top = hi + rng * 0.32;
+    const xs = lin(0.5, k + 0.5, M.l, W - M.r), ys = lin(lo - rng * 0.04, top, H - M.b, M.t);
+    const step = rng > 0.3 ? 0.1 : 0.05, yt = [];
+    for (let v = Math.ceil((lo - rng * 0.04) / step) * step; v <= top; v += step) yt.push({ v: Math.round(v * 100) / 100, l: fmt(v, 2) });
+    axes(svg, xs, ys, [1, 5, 10, 15, 20, 25, 28].map(v => ({ v })), yt, 'Componente facial', 'Peso');
+    const bw = (xs(2) - xs(1)) * 0.62;
+    R.coef.forEach((c, i) => {
+      const x = xs(i + 1), y0 = ys(0), y1 = ys(c);
+      el('rect', { x: x - bw / 2, y: Math.min(y0, y1), width: bw, height: Math.abs(y1 - y0), class: 'm-red', 'fill-opacity': 0.85 }, svg);
+      el('line', { x1: x, x2: x, y1: ys(R.coef_lo[i]), y2: ys(R.coef_hi[i]), class: 'err' }, svg);
+    });
+    el('line', { x1: M.l, x2: W - M.r, y1: ys(R.beta_verdadero), y2: ys(R.beta_verdadero), class: 'l-gold-dash' }, svg);
+    el('line', { x1: M.l, x2: W - M.r, y1: ys(0), y2: ys(0), class: 'ax-line' }, svg);
+    legend(svg, M.l + 8, M.t + 14, 'bar-red', 'Estimado por BRIM');
+    legend(svg, M.l + 150, M.t + 14, 'dash-gold', 'Valor verdadero (' + fmt(R.beta_verdadero, 3) + ')');
+  })();
+
+  // ---------- 5. Barrido de 20 semillas ----------
+  const mqNarrow = window.matchMedia('(max-width: 760px)');
+  let figBarrido = null;
+  function dibujarBarrido() {
+    if (figBarrido) figBarrido.remove();
+    const ancho = !mqNarrow.matches;
+    const svg = chart('Estabilidad', 'Barrido de 20 semillas',
+      'El mismo experimento repetido con 20 cohortes distintas. Una sola corrida varía mucho; por eso se reporta la media.', ancho ? 1060 : 0, ancho ? 270 : 300);
+    figBarrido = svg.parentNode;
+    const all = bh.concat(bp), lo = Math.floor(Math.min(...all) / 5) * 5, hi = Math.ceil(Math.max(...all) / 5) * 5 + 5;
+    const xs = lin(0.5, 20.5, M.l, W - M.r), ys = lin(lo, hi, H - M.b, M.t);
+    const yt = []; for (let v = lo; v <= hi; v += 5) yt.push({ v, l: v + ' %' });
+    axes(svg, xs, ys, [1, 5, 10, 15, 20].map(v => ({ v })), yt, 'Semilla (cohorte simulada número…)', 'R² honesto');
+    el('line', { x1: M.l, x2: W - M.r, y1: ys(0), y2: ys(0), stroke: 'var(--text-dim)', 'stroke-width': 1.2 }, svg);
+    el('line', { x1: M.l, x2: W - M.r, y1: ys(mean(bh)), y2: ys(mean(bh)), class: 'l-gold-dash' }, svg);
+    el('line', { x1: M.l, x2: W - M.r, y1: ys(mean(bp)), y2: ys(mean(bp)), class: 'l-dash' }, svg);
+    bh.forEach((v, i) => el('circle', { cx: xs(i + 1) - 2.5, cy: ys(v), r: 4, class: 'm-gold' }, svg));
+    bp.forEach((v, i) => el('circle', { cx: xs(i + 1) + 2.5, cy: ys(v), r: 4, class: 'm-gray' }, svg));
+    legend(svg, M.l + 8, M.t + 14, 'dot-gold', 'Con señal: media ' + pct(mean(bh)));
+    legend(svg, M.l + 8, M.t + 30, 'dot-gray', 'Puntaje mezclado: media ' + pct(mean(bp)));
+  }
+  dibujarBarrido();
+  mqNarrow.addEventListener('change', dibujarBarrido);
+
+  // ---------- Dirección del RIP en la cara (3 vistas Three.js) ----------
+  const V = nVertexDim;
+  const dvec = new Float32Array(V);
+  for (let k = 0; k < nComponentes; k++) {
+    const c = R.w[k] * desvios[k] * escala[k];
+    for (let i = 0, j = k; i < V; i++, j += nComponentes) dvec[i] += c * baseQ[j];
+  }
+  const nv = V / 3, mmv = new Float32Array(nv);
+  let mmMax = 0;
+  for (let v = 0; v < nv; v++) {
+    const a = dvec[3 * v], b = dvec[3 * v + 1], c = dvec[3 * v + 2];
+    mmv[v] = 4 * Math.sqrt(a * a + b * b + c * c);
+    if (mmv[v] > mmMax) mmMax = mmv[v];
+  }
+  $('heat-max').textContent = fmt(mmMax) + ' mm';
+  const colors = new Float32Array(V);
+  const stops = [[0.965, 0.937, 0.886], [0.878, 0.675, 0.290], [0.718, 0.212, 0.176]];
+  for (let v = 0; v < nv; v++) {
+    const t = mmv[v] / mmMax, u = t < 0.5 ? t * 2 : (t - 0.5) * 2;
+    const A = t < 0.5 ? stops[0] : stops[1], B = t < 0.5 ? stops[1] : stops[2];
+    for (let c = 0; c < 3; c++) colors[3 * v + c] = A[c] + (B[c] - A[c]) * u;
+  }
+  // encuadre común
+  const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+  for (let i = 0; i < V; i++) { const c = i % 3; if (media[i] < mn[c]) mn[c] = media[i]; if (media[i] > mx[c]) mx[c] = media[i]; }
+  const ctr = mn.map((v, c) => (v + mx[c]) / 2), dim = mn.map((v, c) => mx[c] - v);
+  const maxD = Math.max(...dim);
+
+  const rot = { x: 0, y: 0.35 };
+  const views = [];
+  function makeView(id, heat) {
+    const holder = $(id);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(28, 1, 1, 5000);
+    camera.position.set(0, dim[1] * 0.05, maxD * 2.35);
+    camera.lookAt(0, 0, 0);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    holder.appendChild(renderer.domElement);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V), 3));
+    geo.setIndex(new THREE.BufferAttribute(cells, 1));
+    if (heat) geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const mat = new THREE.MeshStandardMaterial({ color: heat ? 0xffffff : 0xE8DCC8, vertexColors: !!heat, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(-ctr[0], -ctr[1], -ctr[2]);
+    const group = new THREE.Group();
+    group.add(mesh);
+    scene.add(group);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const d1 = new THREE.DirectionalLight(0xfff2e0, 1.0); d1.position.set(1, 1, 1.5); scene.add(d1);
+    const d2 = new THREE.DirectionalLight(0xe8f0ff, 0.4); d2.position.set(-1, 0.3, -1); scene.add(d2);
+    const view = { holder, scene, camera, renderer, geo, group };
+    views.push(view);
+    // rotación compartida
+    let drag = false, lx = 0, ly = 0;
+    const down = (x, y) => { drag = true; lx = x; ly = y; };
+    const move = (x, y) => { if (!drag) return; rot.y += (x - lx) * 0.008; rot.x = Math.max(-1.1, Math.min(1.1, rot.x + (y - ly) * 0.008)); lx = x; ly = y; dirtyRip = true; };
+    holder.addEventListener('mousedown', e => down(e.clientX, e.clientY));
+    window.addEventListener('mousemove', e => move(e.clientX, e.clientY));
+    window.addEventListener('mouseup', () => { drag = false; });
+    holder.addEventListener('touchstart', e => { const t = e.touches[0]; down(t.clientX, t.clientY); }, { passive: true });
+    holder.addEventListener('touchmove', e => { const t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: true });
+    holder.addEventListener('touchend', () => { drag = false; });
+    return view;
+  }
+  let dirtyRip = true;
+  const vMinus = makeView('cv-minus', false), vPlus = makeView('cv-plus', false), vHeat = makeView('cv-heat', true);
+
+  function setFace(view, sign, amp) {
+    const p = view.geo.attributes.position.array, f = sign * 2 * amp;
+    for (let i = 0; i < V; i++) p[i] = media[i] + f * dvec[i];
+    view.geo.attributes.position.needsUpdate = true;
+    view.geo.computeVertexNormals();
+  }
+  function setHeat() {
+    const p = vHeat.geo.attributes.position.array;
+    for (let i = 0; i < V; i++) p[i] = media[i];
+    vHeat.geo.attributes.position.needsUpdate = true;
+    vHeat.geo.computeVertexNormals();
+  }
+  function setAmp(amp) {
+    setFace(vMinus, -1, amp); setFace(vPlus, 1, amp);
+    const txt = amp === 1 ? 'Tamaño real' : 'Exagerada ×' + amp;
+    $('sub-minus').textContent = txt + ' · dos desvíos hacia un lado';
+    $('sub-plus').textContent = txt + ' · dos desvíos hacia el otro';
+    document.querySelectorAll('#amp-seg button').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.amp) === amp)));
+    dirtyRip = true;
+  }
+  $('amp-seg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (b) setAmp(Number(b.dataset.amp));
+  });
+  setHeat(); setAmp(5);
+
+  function resizeViews() {
+    views.forEach(v => {
+      const w = v.holder.clientWidth, h = v.holder.clientHeight;
+      if (!w || !h) return;
+      v.renderer.setSize(w, h, false);
+      v.camera.aspect = w / h; v.camera.updateProjectionMatrix();
+    });
+    dirtyRip = true;
+  }
+  window.addEventListener('resize', resizeViews);
+  function loopRip() {
+    requestAnimationFrame(loopRip);
+    if (!dirtyRip) return;
+    dirtyRip = false;
+    views.forEach(v => { v.group.rotation.y = rot.y; v.group.rotation.x = rot.x; v.renderer.render(v.scene, v.camera); });
+  }
+  resizeViews(); loopRip();
+})();
+</script>
+</body>
+</html>

@@ -385,6 +385,13 @@ def main():
     except Exception as exc:
         print(f"No se pudo generar el panel de gráficos: {exc!r}")
 
+    try:
+        from generar_reporte import generar_reporte
+        ruta_html = generar_reporte(semilla=p3.SEMILLA)
+        print(f"\nReporte HTML (visor 3D + resultados) generado en: {ruta_html}")
+    except Exception as exc:
+        print(f"No se pudo generar el reporte HTML: {exc!r}")
+
 
 if __name__ == "__main__":
     main()
