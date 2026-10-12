@@ -130,3 +130,21 @@ python -m pytest tests/            # tests de sanidad
 
 `brim_rostro.py` exporta `brim_rostro_resultados.npz` y `brim_rostro.png` en
 la raíz del repo.
+
+## Pipeline completo (Puntos 1, 2 y 3 en un comando)
+
+`correr_pipeline.py` (ver detalle en `README.md`): corre las tres etapas de
+punta a punta reutilizando las funciones de cada módulo (no reimplementa
+nada), con marca OK/REVISAR/N/D/FALLÓ por verificación, y una etapa que
+falla no frena a las demás.
+
+```
+python correr_pipeline.py          # barrido de 20 semillas
+python correr_pipeline.py --rapido # barrido de 5 semillas (desarrollo)
+```
+
+Exporta `reporte_pipeline.txt` y `reporte_pipeline.png` (panel de 4
+gráficos) en la raíz del repo. Si `model2019_face12.h5` no está en la
+carpeta, lo avisa (N/D en esa verificación puntual) y sigue con el `.npz`.
+Tiene lugares reservados, sin implementar, para el Punto 4 (calibración) y
+el Punto 5.

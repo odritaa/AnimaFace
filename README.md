@@ -129,11 +129,36 @@ exacto de una sola corrida.
 desde CDN) — no necesita servidor ni backend. Se abre directamente con
 doble click o "Abrir con" el navegador.
 
-### BRIM (Punto 3)
+### Pipeline completo (Puntos 1, 2 y 3 en un solo comando)
 
 ```
 pip install -r requirements.txt
 
+python correr_pipeline.py          # barrido de 20 semillas (el que se cita)
+python correr_pipeline.py --rapido # barrido de 5 semillas, para desarrollo
+```
+
+`correr_pipeline.py` corre, en orden, las verificaciones de Punto 1, la
+cohorte de Punto 2, la corrida de BRIM (Punto 3), el barrido de semillas y
+los tests -- reutilizando las funciones de cada módulo, sin reimplementar
+nada. Si una etapa falla, se marca y el pipeline sigue con las demás. Si
+`model2019_face12.h5` no está en la carpeta (no lo está en este repo), lo
+avisa y verifica solo contra el `.npz` -- sin el `.h5` no se puede comprobar
+el "95% de la varianza total" porque el `.npz` solo guarda las 28
+componentes ya retenidas, no el total del modelo.
+
+Salida:
+- consola, con marca `OK` / `REVISAR` / `N/D` / `FALLÓ` por verificación;
+- `reporte_pipeline.txt`: el mismo resumen, con fecha de la corrida;
+- `reporte_pipeline.png`: panel de 4 gráficos (varianza acumulada, puntaje
+  escalar de la cohorte, RIP vs. puntaje real, barrido de semillas).
+
+Tiene lugares reservados (sin implementar) para el Punto 4 (calibración) y
+el Punto 5 del proyecto.
+
+### BRIM (Punto 3) por separado
+
+```
 python brim_rostro.py              # corrida principal + controles de sanidad
                                     # exporta brim_rostro_resultados.npz y brim_rostro.png
 

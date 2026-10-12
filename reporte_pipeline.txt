@@ -1,0 +1,64 @@
+Pipeline Rostro -- corrida del 2026-10-12 13:31
+
+======================================================================
+PUNTO 1 -- Espacio de rasgos faciales (Basel Face Model)
+======================================================================
+  [OK     ] 28 componentes retenidas -- n_componentes=28
+  [OK     ] 27.657 vértices -- vértices=27657
+Pesos=0 reproduce la media exacta: True
+Desplazamiento promedio (PC1 +2 desvíos): 6.33 mm
+Desplazamiento máximo: 12.04 mm
+  [OK     ] pesos=0 reproduce la cara promedio exacta
+  [OK     ] desplazamiento con PC1 +2 desvíos no es absurdo -- 6.33 mm promedio, 12.04 mm máximo
+  [N/D    ] model2019_face12.h5 no está en la carpeta -- no se puede comprobar la varianza total contra el modelo original (el .npz solo guarda las 28 componentes ya retenidas, no el total). Se sigue con el .npz.
+
+======================================================================
+PUNTO 2 -- Puntaje poligénico (puntaje_poligenico.py)
+======================================================================
+  Desvío por componente (genética) -- mín/media/máx: 0.2516 / 0.2817 / 0.3057  (esperado ≈ 0.2811)
+  [OK     ] puntaje escalar estandarizado (media 0, desvío 1) -- media=2.12e-17  desvío=1.0000
+  [OK     ] varianza de la cara observada ≈ 1 por componente -- mín=0.894  máx=1.088
+
+======================================================================
+PUNTO 3 -- BRIM (brim_rostro.py)
+======================================================================
+
+Corrida principal (cohorte oficial)
+  Componentes PLS elegidas (validación cruzada): 1
+  R² leave-one-out (honesto):        2.89 %   IC95 % bootstrap [-2.55 ; 7.51]
+  Correlación RIP vs puntaje:       0.208
+  R² 'con trampa' (sin LOO):        11.45 %
+  Mejor componente sola (R²):        1.26 %
+
+Control de permutación
+  Componentes PLS elegidas (validación cruzada): 1
+  R² leave-one-out (honesto):       -1.79 %   IC95 % bootstrap [-6.99 ; 2.89]
+  Correlación RIP vs puntaje:       0.107
+  R² 'con trampa' (sin LOO):         8.26 %
+  Mejor componente sola (R²):        1.57 %
+  [OK     ] R² 'con trampa' > R² honesto -- 11.45% > 2.89%
+  [OK     ] R² con el puntaje mezclado < 3% -- -1.79%
+
+======================================================================
+BARRIDO DE SEMILLAS -- 20 semillas
+======================================================================
+
+=== BARRIDO DE 20 SEMILLAS (corrida principal vs permutación, R² LOO) ===
+  R² honesto     -- media:   2.25 %   mín:  -2.81 %   máx:  10.04 %
+  R² permutación -- media:  -5.41 %   mín:  -7.60 %   máx:  -1.67 %
+
+======================================================================
+TESTS -- pytest tests/
+======================================================================
+  ......                                                                   [100%]
+  ============================== warnings summary ===============================
+  tests/test_brim.py::test_r2_con_trampa_mayor_que_honesto
+  tests/test_brim.py::test_corrida_principal_r2_honesto_en_rango
+  tests/test_brim.py::test_permutacion_r2_loo_menor_a_3_por_ciento
+  tests/test_brim.py::test_sin_senal_r2_loo_cercano_a_cero
+    C:\Users\Audrey diosa Bntos\AppData\Roaming\Python\Python311\site-packages\numpy\lib\_nanfunctions_impl.py:1997: RuntimeWarning: Degrees of freedom <= 0 for slice.
+      var = nanvar(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+  
+  -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+  6 passed, 4 warnings in 9.23s
+  [OK     ] pytest tests/ -- 6 passed, 4 warnings in 9.23s
