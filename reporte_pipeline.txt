@@ -1,4 +1,5 @@
-Pipeline Rostro -- corrida del 2026-10-12 13:31
+Pipeline Rostro -- corrida del 2026-10-12 13:34
+Modo --rapido: barrido de 5 semillas (no 20).
 
 ======================================================================
 PUNTO 1 -- Espacio de rasgos faciales (Basel Face Model)
@@ -40,12 +41,12 @@ Control de permutación
   [OK     ] R² con el puntaje mezclado < 3% -- -1.79%
 
 ======================================================================
-BARRIDO DE SEMILLAS -- 20 semillas
+BARRIDO DE SEMILLAS -- 5 semillas
 ======================================================================
 
-=== BARRIDO DE 20 SEMILLAS (corrida principal vs permutación, R² LOO) ===
-  R² honesto     -- media:   2.25 %   mín:  -2.81 %   máx:  10.04 %
-  R² permutación -- media:  -5.41 %   mín:  -7.60 %   máx:  -1.67 %
+=== BARRIDO DE 5 SEMILLAS (corrida principal vs permutación, R² LOO) ===
+  R² honesto     -- media:   2.49 %   mín:   1.32 %   máx:   4.81 %
+  R² permutación -- media:  -4.68 %   mín:  -7.27 %   máx:  -1.79 %
 
 ======================================================================
 TESTS -- pytest tests/
@@ -60,5 +61,5 @@ TESTS -- pytest tests/
       var = nanvar(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
   
   -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-  6 passed, 4 warnings in 9.23s
-  [OK     ] pytest tests/ -- 6 passed, 4 warnings in 9.23s
+  6 passed, 4 warnings in 7.48s
+  [OK     ] pytest tests/ -- 6 passed, 4 warnings in 7.48s
