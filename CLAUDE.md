@@ -90,10 +90,20 @@ poligénico sintético, con un visor 3D interactivo en el navegador.
   R² < 5%; `puntaje_escalar` estandarizado exacto; `cara_observada` con
   varianza ~1 por componente. Tolerancias anchas a propósito — ver el punto
   siguiente.
+- Control B-03 (`tests/test_b03.py`): sobre el barrido real de 20 semillas,
+  el límite inferior del IC 95% de la diferencia pareada (honesto −
+  permutación) tiene que ser > 0. El test solo afirma eso, sin valores
+  exactos. Incluye dos tests unitarios de `diferencia_pareada()` con datos
+  sintéticos conocidos.
 - **El R² honesto varía de corrida a corrida según la semilla** (en 20
-  semillas: de -2,8% a 10,0%, media 2,25%; la permutación varió de -7,6% a
-  -1,7%, media -5,41%). `barrido_semillas_brim.py` mide esto con 20 semillas
-  y es el número que se cita en la tesis — no el de una semilla suelta.
+  semillas: de -2,8% a 10,0%; la permutación varió de -7,6% a -1,7%, media
+  -5,41%). Como el rango supera 5 puntos porcentuales, se cita el barrido de
+  20 semillas y no una semilla suelta. **Números que se citan en la tesis**
+  (`barrido_semillas_brim.py`): R² honesto media 2,25%, y diferencia pareada
+  semilla por semilla (honesto − permutación, `diferencia_pareada()` en
+  `brim_rostro.py`, IC 95% bootstrap percentil con 10.000 remuestreos):
+  media 7,65 puntos porcentuales, IC 95% [6,43 ; 9,01], positiva en 20 de 20
+  semillas.
 - Parámetros editables en `brim_rostro.py`: `N_PERSONAS` (503, subpoblación
   europea de 1000 Genomes — cambiarlo es decisión del proyecto/tutor, no se
   cambia solo), `R2_TOTAL` (techo para `simular_cohorte()`), `N_BOOTSTRAP`,

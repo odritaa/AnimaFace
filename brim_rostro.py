@@ -317,6 +317,48 @@ def imprimir_barrido_semillas(resultado):
 
 
 # ---------------------------------------------------------------------------
+# B-03: diferencia pareada honesto - permutación, con IC bootstrap
+# ---------------------------------------------------------------------------
+# En vez de comparar el promedio del R² honesto contra el promedio de la
+# permutación, se calcula la diferencia semilla por semilla (misma cohorte en
+# las dos corridas) y se le pone un IC 95 % por bootstrap percentil.
+# Criterio B-03: el límite inferior del IC tiene que ser > 0.
+def diferencia_pareada(honesto, permutacion, n_boot=10_000, semilla=SEMILLA):
+    """
+    honesto, permutacion: R² de cada semilla, en el mismo orden (pareados).
+    Devuelve la media de d = honesto - permutacion, el IC 95 % percentil
+    (remuestreando las d con reposición n_boot veces) y cuántas d son > 0.
+    Las unidades de salida son las mismas que las de entrada.
+    """
+    honesto = np.asarray(honesto, dtype=float)
+    permutacion = np.asarray(permutacion, dtype=float)
+    if honesto.shape != permutacion.shape or honesto.ndim != 1:
+        raise ValueError("honesto y permutacion tienen que ser vectores del mismo largo")
+
+    d = honesto - permutacion
+    rng = np.random.default_rng(semilla)
+    idx = rng.integers(0, len(d), size=(n_boot, len(d)))
+    medias_boot = d[idx].mean(axis=1)
+    ic_inf, ic_sup = np.percentile(medias_boot, [2.5, 97.5])
+
+    return {
+        "media": d.mean(),
+        "ic95": (ic_inf, ic_sup),
+        "n_positivas": int((d > 0).sum()),
+        "n": len(d),
+    }
+
+
+def imprimir_diferencia_pareada(dif):
+    ic_inf, ic_sup = dif["ic95"]
+    cumple = "SÍ" if ic_inf > 0 else "NO"
+    print(f"\n=== B-03: DIFERENCIA PAREADA (honesto - permutación, {dif['n']} semillas) ===")
+    print(f"  media: {dif['media']*100:5.2f} pp   IC 95 %: [{ic_inf*100:5.2f} ; {ic_sup*100:5.2f}] pp")
+    print(f"  semillas con diferencia > 0: {dif['n_positivas']} de {dif['n']}")
+    print(f"  ¿cumple B-03 (límite inferior > 0)? {cumple}")
+
+
+# ---------------------------------------------------------------------------
 # Dirección del RIP en el espacio facial
 # ---------------------------------------------------------------------------
 def direccion_rip_en_cara(coef, media, base_pca, varianza, n_desvios=2.0):
